@@ -22,3 +22,8 @@ Run this command to undeploy
 ```shell
 docker-compose down
 ```
+
+## Testing
+
+Apply some queries, open some dashboards and then look to Jaeger to find the trace of these requests.
+![Grafana Trace Example](assets/grafana-trace-example.png)
