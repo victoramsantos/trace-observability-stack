@@ -36,7 +36,7 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning/:/etc/grafana/provisioning/
-      - ./grafana/trace/trace.out:/grafana/trace/trace.out
+      - ./grafana/config/defaults.ini:/usr/share/grafana/conf/defaults.ini
     env_file:
       - ./grafana/config.monitoring
     restart: always
@@ -106,6 +106,7 @@ services:
     networks:
       - localnet
 
+  # Just to expose some metrics to Prometheus
   node-exporter:
     container_name: node-exporter
     image: prom/node-exporter:v1.4.0
