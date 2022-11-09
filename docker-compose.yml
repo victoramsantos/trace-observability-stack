@@ -1,0 +1,154 @@
+version: '3.7'
+
+volumes:
+    prometheus_data: {}
+    grafana_data: {}
+
+services:
+
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:v2.40.0
+    volumes:
+      - ./prometheus/:/etc/prometheus/
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9090:9090"
+    restart: always
+    networks:
+      - localnet
+    depends_on:
+      - jaeger
+
+  grafana:
+    container_name: grafana
+    image: grafana/grafana:9.2.3
+    user: "472"
+    depends_on:
+      - prometheus
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning/:/etc/grafana/provisioning/
+      - ./grafana/trace/trace.out:/grafana/trace/trace.out
+    env_file:
+      - ./grafana/config.monitoring
+    restart: always
+    networks:
+      - localnet
+
+  thanos-sidecar-1:
+    container_name: thanos-sidecar-1
+    image: quay.io/thanos/thanos:v0.29.0
+    volumes:
+      - prometheus_data:/prometheus
+      - ./thanos/thanos-tracing.yml:/thanos/thanos-tracing.yml
+    command:
+      - 'sidecar'
+      - '--tsdb.path=/prometheus'
+      - '--prometheus.url=http://prometheus:9090'
+      - '--grpc-address=0.0.0.0:10091'
+      - '--http-address=0.0.0.0:10902'
+      - '--tracing.config-file=/thanos/thanos-tracing.yml'
+    environment:
+      - OTEL_SERVICE_NAME=thanos-sidecar-1
+    depends_on:
+      - prometheus
+    restart: always
+    networks:
+      - localnet
+
+  thanos-query-frontend:
+    container_name: thanos-query-frontend
+    image: quay.io/thanos/thanos:v0.29.0
+    volumes:
+      - ./thanos/thanos-tracing.yml:/thanos/thanos-tracing.yml
+    command:
+      - 'query-frontend'
+      - '--http-address=0.0.0.0:10901'
+      - '--query-frontend.downstream-url=http://thanos-querier:10902'
+      - '--tracing.config-file=/thanos/thanos-tracing.yml'
+    environment:
+      - OTEL_SERVICE_NAME=thanos-query-frontend
+    ports:
+      - "10901:10901"
+    depends_on:
+      - thanos-querier
+    restart: always
+    networks:
+      - localnet
+
+  thanos-querier:
+    container_name: thanos-querier
+    image: quay.io/thanos/thanos:v0.29.0
+    volumes:
+      - ./thanos/thanos-tracing.yml:/thanos/thanos-tracing.yml
+    command:
+      - 'query'
+      - '--grpc-address=0.0.0.0:10091'
+      - '--http-address=0.0.0.0:10902'
+      - '--query.replica-label=replica'
+      - '--store=thanos-sidecar-1:10091'
+      - '--tracing.config-file=/thanos/thanos-tracing.yml'
+    environment:
+      - OTEL_SERVICE_NAME=thanos-querier
+    ports:
+      - "10902:10902"
+    depends_on:
+      - thanos-sidecar-1
+    restart: always
+    networks:
+      - localnet
+
+  node-exporter:
+    container_name: node-exporter
+    image: prom/node-exporter:v1.4.0
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - --collector.filesystem.ignored-mount-points
+      - "^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)"
+    ports:
+      - "9100:9100"
+    restart: always
+    networks:
+      - localnet
+
+  jaeger:
+    container_name: jaeger
+    networks:
+      - localnet
+    image: jaegertracing/all-in-one:latest
+    volumes:
+      - "./jaeger/jaeger-ui.json:/etc/jaeger/jaeger-ui.json"
+    command: --query.ui-config /etc/jaeger/jaeger-ui.json
+    environment:
+      - METRICS_STORAGE_TYPE=prometheus
+      - PROMETHEUS_SERVER_URL=http://prometheus:9090
+    ports:
+      - "16686:16686"
+
+  otel_collector:
+    networks:
+      - localnet
+    image: otel/opentelemetry-collector-contrib:latest
+    volumes:
+      - "./otel-collector/otel-collector-config.yml:/etc/otelcol/otel-collector-config.yml"
+    command: --config /etc/otelcol/otel-collector-config.yml
+    ports:
+      - "4317:4317"
+    depends_on:
+      - jaeger
+
+networks:
+  localnet:
