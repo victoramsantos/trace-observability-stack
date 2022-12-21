@@ -13,8 +13,6 @@ services:
       - discovery.type=single-node
       - ELASTIC_PASSWORD=root
       - ELASTIC_USERNAME=root
-      - es.tls.enabled
-      - ES_TLS_ENABLED
     ulimits:
       memlock:
         soft: -1
