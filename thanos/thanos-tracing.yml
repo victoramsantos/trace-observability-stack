@@ -1,21 +1,11 @@
 type: "OTLP"
 config:
   client_type: "grpc"
-  reconnection_period: 0s
-  compression: ""
+  compression: "gzip"
   insecure: true
-  endpoint: "otel_collector:4317"
-  url_path: ""
-  timeout: 0s
+  endpoint: "otel-collector:4317"
+  timeout: 1s
   retry_config:
     retry_enabled: false
-    retry_initial_interval: 0s
-    retry_max_interval: 0s
-    retry_max_elapsed_time: 0s
-  headers: {}
   tls_config:
-    ca_file: ""
-    cert_file: ""
-    key_file: ""
-    server_name: ""
     insecure_skip_verify: false

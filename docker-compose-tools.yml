@@ -5,7 +5,6 @@ volumes:
     grafana_data: {}
 
 services:
-
   prometheus:
     container_name: prometheus
     image: prom/prometheus:v2.40.0
@@ -20,10 +19,6 @@ services:
     ports:
       - "9090:9090"
     restart: always
-    networks:
-      - localnet
-    depends_on:
-      - jaeger
 
   grafana:
     container_name: grafana
@@ -39,8 +34,6 @@ services:
     env_file:
       - ./grafana/config.monitoring
     restart: always
-    networks:
-      - localnet
 
   thanos-sidecar-1:
     container_name: thanos-sidecar-1
@@ -60,8 +53,6 @@ services:
     depends_on:
       - prometheus
     restart: always
-    networks:
-      - localnet
 
   thanos-query-frontend:
     container_name: thanos-query-frontend
@@ -80,8 +71,6 @@ services:
     depends_on:
       - thanos-querier
     restart: always
-    networks:
-      - localnet
 
   thanos-querier:
     container_name: thanos-querier
@@ -102,53 +91,3 @@ services:
     depends_on:
       - thanos-sidecar-1
     restart: always
-    networks:
-      - localnet
-
-  # Just to expose some metrics to Prometheus
-  node-exporter:
-    container_name: node-exporter
-    image: prom/node-exporter:v1.4.0
-    volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /:/rootfs:ro
-    command:
-      - '--path.procfs=/host/proc'
-      - '--path.sysfs=/host/sys'
-      - --collector.filesystem.ignored-mount-points
-      - "^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)"
-    ports:
-      - "9100:9100"
-    restart: always
-    networks:
-      - localnet
-
-  jaeger:
-    container_name: jaeger
-    networks:
-      - localnet
-    image: jaegertracing/all-in-one:latest
-    volumes:
-      - "./jaeger/jaeger-ui.json:/etc/jaeger/jaeger-ui.json"
-    command: --query.ui-config /etc/jaeger/jaeger-ui.json
-    environment:
-      - METRICS_STORAGE_TYPE=prometheus
-      - PROMETHEUS_SERVER_URL=http://prometheus:9090
-    ports:
-      - "16686:16686"
-
-  otel_collector:
-    networks:
-      - localnet
-    image: otel/opentelemetry-collector-contrib:latest
-    volumes:
-      - "./otel-collector/otel-collector-config.yml:/etc/otelcol/otel-collector-config.yml"
-    command: --config /etc/otelcol/otel-collector-config.yml
-    ports:
-      - "4317:4317"
-    depends_on:
-      - jaeger
-
-networks:
-  localnet:
