@@ -1,0 +1,38 @@
+version: '3.7'
+
+services:
+  jaeger-es-rollover:
+      container_name: jaeger-es-rollover
+      image: rollover-local
+      environment:
+        - ELASTICSEARCH_HOST=http://elasticsearch:9200
+        - ELASTICSEARCH_USERNAME=root
+        - ELASTICSEARCH_PASSWORD=root
+      restart: always
+
+  jaeger-es-rollover-lookback:
+    container_name: jaeger-es-rollover-lookback
+    image: lookback-local
+    environment:
+      - ELASTICSEARCH_HOST=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=root
+      - ELASTICSEARCH_PASSWORD=root
+    restart: always
+
+  jaeger-indexcleaner:
+    container_name: jaeger-indexcleaner
+    image: indexcleaner-local
+    environment:
+      - ELASTICSEARCH_HOST=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=root
+      - ELASTICSEARCH_PASSWORD=root
+    restart: always
+
+  jaeger-init:
+    container_name: jaeger-init
+    image: init-local
+    environment:
+      - ELASTICSEARCH_HOST=http://elasticsearch:9200
+      - ES_USERNAME=root
+      - ES_PASSWORD=root
+

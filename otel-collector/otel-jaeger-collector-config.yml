@@ -1,0 +1,35 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+
+exporters:
+  jaeger:
+    endpoint: "jaeger-collector:14250"
+    tls:
+      insecure: true
+
+processors:
+  batch:
+  transform:
+    traces:
+      statements:
+        - keep_keys(attributes, ["http.method", "http.status_code", "http.target", "http.host", "http.user_agent", "query", "name","http.url", "nu.prototype", "datasource_uid", "datasource_type", "datasource_name", "expr"])
+  filter:
+    spans:
+      exclude:
+        match_type: regexp
+        attributes:
+          - key: http.target
+            value: (/-/*|/favicon.ico|/static/*|/metrics|/api/v1/metadata|/api/v1/status/*|/api/v1/alertmanagers|/manifest.json|/api/v1/targets)
+
+service:
+  pipelines:
+    traces/clean:
+      receivers: [otlp]
+      processors:
+        - transform
+        - filter
+        - batch
+      exporters: [jaeger]
